@@ -1,56 +1,52 @@
 #include "kernel/types.h"
-#include "kernel/param.h"
+#include "kernel/stat.h"
 #include "user/user.h"
+#include "kernel/param.h"
 
-#undef __DEBUG__
 
-#ifdef __DEBUG__
-#define debug(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#else
-#define debug(fmt, ...)
-#endif
-
-int main(int argc, char *argv[])
+void
+xargs(int argc, char *argv[])
 {
-  char buf[512] = {0};
-  char *sargv[MAXARG];
-  int sargc = 0;
-  int pid, i;
-  int len;
-
-  debug("argc=%d\n", argc);
-
-  for (i = 1; i < argc; i++) {
-    sargv[sargc++] = argv[i];
-    debug("sargv[%d]=%s\n", sargc-1, sargv[sargc-1]);
-  }
-
-  while (1) {
-    gets(buf, sizeof(buf));
-    if (buf[0] == '\0') {
-      break;
+    char buf[512];
+    char c;
+    int pos = 0;
+    while(read(0, &c, 1) > 0) {
+        if(c != '\n') {
+            buf[pos++] = c;
+            continue;
+        }
+        buf[pos] = '\0';
+        int pid = fork();
+        if(pid == 0) {
+            if(argc + 1 > MAXARG) {
+                fprintf(2, "xargs: too many args\n");
+                exit(1);
+            }
+            char *cmd_args[MAXARG];
+            for(int i = 1; i < argc; ++i) {
+                cmd_args[i - 1] = argv[i];
+            }
+            cmd_args[argc - 1] = buf;
+            cmd_args[argc] = 0;
+            exec(cmd_args[0], cmd_args);
+            fprintf(2, "xargs: exec %s failed\n", argv[0]);
+            exit(1);
+        } else if(pid > 0) {
+            wait(0);
+            pos = 0;
+        } else {
+            fprintf(2, "fork failed\n");
+            exit(1);
+        }
     }
-    debug("buf=%s, len=%d\n", buf, strlen(buf));
+}
 
-    for (len=strlen(buf)-1; buf[len] == '\r' || buf[len] == '\n'; len--) {
-      buf[len] = '\0';
+void
+main(int argc, char *argv[])
+{
+    if(argc < 2) {
+        fprintf(2, "xargs: args must be greater than 2\n");
+        exit(1);
     }
-    debug("buf=%s, len=%d\n", buf, strlen(buf));
-
-    sargv[sargc++] = buf;
-    sargv[sargc++] = (void *)0;
-
-    pid = fork();
-    if (pid > 0) {
-      wait((void *)0);
-    } else if (pid == 0) {
-      exec(sargv[0], sargv);
-      exit(0);
-    } else {
-      printf("Error: fork\n");
-      exit(1);
-    }
-  }
-
-  return 0;
+    xargs(argc, argv);
 }

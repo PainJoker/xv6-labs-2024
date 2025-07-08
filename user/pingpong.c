@@ -1,50 +1,47 @@
 #include "kernel/types.h"
+#include "kernel/stat.h"
 #include "user/user.h"
 
-int main(int argc, char *argv[])
+int 
+main(int argc, char *argv[])
 {
-  int ret = 0, fd = 0;
-  int p_f2s[2], p_s2f[2];
-  char buf[8] = {0};
-  char pingpong = 'a';
+    const uchar packet = 'A';
+    uchar buf[1];
 
-  ret = pipe(p_f2s);
-  if (ret != 0) {
-    printf("Error: pipe f2s");
-    exit(1);
-  }
-  ret = pipe(p_s2f);
-  if (ret != 0) {
-    printf("Error: pipe s2f");
-    exit(1);
-  }
+    int to_child[2];
+    int to_parent[2];
+    pipe(to_child);
+    pipe(to_parent);
 
-  fd = fork();
-  if (fd > 0) {
-    /* Father */
-    close(p_f2s[0]);
-    close(p_s2f[1]);
+    int pid = fork();
+    if(pid > 0) {
+        close(to_child[0]);
+        close(to_parent[1]);
 
-    write(p_f2s[1], &pingpong, sizeof(pingpong));
-    ret = read(p_s2f[0], buf, sizeof(buf));
-    if (ret > 0) {
-      printf("%d: received pong\n", getpid());
+        write(to_child[1], &packet, 1);
+        read(to_parent[0], buf, 1);
+        if(buf[0] == packet) {
+            printf("%d: received pong\n", getpid());
+        }
+
+        close(to_child[1]);
+        close(to_parent[0]);
+        exit(0);
+    } else if(pid == 0) {
+        close(to_child[1]);
+        close(to_parent[0]);
+
+        read(to_child[0], buf, 1);
+        if(buf[0] == packet) {
+            printf("%d: received ping\n", getpid());
+        }
+        write(to_parent[1], buf, 1);
+
+        close(to_child[0]);
+        close(to_parent[1]);
+        exit(0);
+    } else {
+        printf("fork error\n");
+        exit(1);
     }
-  } else if (fd == 0) {
-    /* Son */
-    close(p_s2f[0]);
-    close(p_f2s[1]);
-
-    ret = read(p_f2s[0], buf, sizeof(buf));
-    if (ret > 0) {
-      printf("%d: received ping\n", getpid());
-      write(p_s2f[1], &pingpong, sizeof(pingpong));
-    }
-  } else {
-    /* Error */
-    printf("Error: fork");
-    exit(1);
-  }
-
-  return 0;
 }

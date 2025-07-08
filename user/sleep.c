@@ -1,14 +1,15 @@
 #include "kernel/types.h"
+#include "kernel/stat.h"
 #include "user/user.h"
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[]) 
 {
-  if (argc != 2) {
-    printf("Error: parameter error.\n");
-    printf("Usage: %s <sec>\n", argv[0]);
-    exit(1);
-  }
-
-  int sec = atoi(argv[1]);
-  return sleep(sec);
+    if(argc < 2) {
+        printf("sleep: missing operand.\n");
+        exit(1);
+    }
+    int time = atoi(argv[1]);
+    sleep(time);
+    exit(0);
 }
