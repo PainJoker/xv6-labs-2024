@@ -35,7 +35,7 @@ void primes_sieve(int read_fd)
         exit(1);
     }
 
-    exit(0);
+    return;
 }
 
 int
