@@ -8,6 +8,12 @@ void
 xargs(int argc, char *argv[])
 {
     char buf[512];
+
+    char *cmd_args[MAXARG];
+    for(int i = 1; i < argc; ++i) {
+        cmd_args[i - 1] = argv[i];
+    }
+
     char c;
     int pos = 0;
     while(read(0, &c, 1) > 0) {
@@ -15,16 +21,12 @@ xargs(int argc, char *argv[])
             buf[pos++] = c;
             continue;
         }
-        buf[pos] = '\0';
+        buf[pos] = 0;
         int pid = fork();
         if(pid == 0) {
             if(argc + 1 > MAXARG) {
                 fprintf(2, "xargs: too many args\n");
                 exit(1);
-            }
-            char *cmd_args[MAXARG];
-            for(int i = 1; i < argc; ++i) {
-                cmd_args[i - 1] = argv[i];
             }
             cmd_args[argc - 1] = buf;
             cmd_args[argc] = 0;
